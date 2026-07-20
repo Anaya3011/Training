@@ -25,6 +25,10 @@ class DigestAuth {
     this.password = password;
     this.challenge = null;
     this.nonceCount = 0;
+    // Concurrent requests sharing one nonce/nc counter can reach the server
+    // out of order (network reordering under load), which Infinispan rejects
+    // as a stale/replayed nonce. Serializing keeps send order == nc order.
+    this.queue = Promise.resolve();
   }
 
   buildAuthorizationHeader(method, requestUri) {
@@ -46,7 +50,15 @@ class DigestAuth {
     return header;
   }
 
-  async fetch(url, options = {}) {
+  fetch(url, options = {}) {
+    // Chain onto the queue so concurrent callers' nonce/nc values are
+    // generated and sent in the same order, never interleaved.
+    const run = this.queue.then(() => this._fetch(url, options));
+    this.queue = run.catch(() => {});
+    return run;
+  }
+
+  async _fetch(url, options = {}) {
     const parsed = new URL(url);
     const requestUri = parsed.pathname + parsed.search;
     const method = options.method || 'GET';
