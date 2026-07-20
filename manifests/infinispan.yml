@@ -68,6 +68,10 @@ spec:
         env:
         - name: IDENTITIES_PATH
           value: /etc/infinispan/identities.yaml
+        - name: JAVA_OPTIONS
+          value: >-
+            -Dinfinispan.cluster.stack=kubernetes
+            -Djgroups.dns.query=infinispan-headless.infinispan.svc.cluster.local
         volumeMounts:
         - name: credentials
           mountPath: /etc/infinispan
