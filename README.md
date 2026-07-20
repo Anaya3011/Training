@@ -26,8 +26,11 @@ Frontend-Applikation und GitHub Actions Runner.
 - `app/` - "Session-App" (Node.js, kein Framework): schreibt/liest pro
   Session-ID einen Zaehler in Infinispan per REST (Digest-Auth), Antwort
   zeigt den Pod-Hostnamen, der geantwortet hat
-- `manifests/session-app.yml` - Deployment, NodePort-Service (30080) und
-  HorizontalPodAutoscaler (CPU-basiert, 1-6 Replicas) fuer die Session-App
+- `manifests/session-app.yml` - eigener Namespace `apps`, Deployment,
+  NodePort-Service (30080) und HorizontalPodAutoscaler (CPU-basiert,
+  1-6 Replicas) fuer die Session-App (bewusst getrennt vom `infinispan`
+  Namespace - erreicht Infinispan ueber den vollen Service-DNS-Namen
+  `infinispan.infinispan.svc.cluster.local` namespace-uebergreifend)
 - `manifests/kaniko-build.yml` - ConfigMap mit dem App-Quellcode + Kaniko-Job,
   baut das Image in-cluster und pusht es in die lokale Registry (kein
   Docker/Podman auf Node oder Mac noetig)
@@ -110,6 +113,6 @@ TARGET=http://192.168.8.250:30080 DURATION_S=180 CONCURRENCY=30 node scripts/loa
 Parallel dazu beobachten:
 
 ```bash
-kubectl get hpa -n infinispan -w
-kubectl get pods -n infinispan -l app=session-app -o wide -w
+kubectl get hpa -n apps -w
+kubectl get pods -n apps -l app=session-app -o wide -w
 ```
