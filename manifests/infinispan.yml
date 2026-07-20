@@ -10,10 +10,8 @@ metadata:
   namespace: infinispan
 type: Opaque
 stringData:
-  identities.yaml: |
-    credentials:
-    - username: admin
-      password: changeme
+  username: admin
+  password: changeme
 ---
 apiVersion: v1
 kind: Service
@@ -66,16 +64,17 @@ spec:
         - containerPort: 7800
           name: ping
         env:
-        - name: IDENTITIES_PATH
-          value: /etc/infinispan/identities.yaml
+        - name: USER
+          valueFrom:
+            secretKeyRef:
+              name: infinispan-credentials
+              key: username
+        - name: PASS
+          valueFrom:
+            secretKeyRef:
+              name: infinispan-credentials
+              key: password
         - name: JAVA_OPTIONS
           value: >-
             -Dinfinispan.cluster.stack=kubernetes
             -Djgroups.dns.query=infinispan-headless.infinispan.svc.cluster.local
-        volumeMounts:
-        - name: credentials
-          mountPath: /etc/infinispan
-      volumes:
-      - name: credentials
-        secret:
-          secretName: infinispan-credentials
