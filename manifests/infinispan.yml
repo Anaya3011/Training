@@ -1,0 +1,77 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: infinispan
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: infinispan-credentials
+  namespace: infinispan
+type: Opaque
+stringData:
+  identities.yaml: |
+    credentials:
+    - username: admin
+      password: changeme
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: infinispan-headless
+  namespace: infinispan
+spec:
+  clusterIP: None
+  selector:
+    app: infinispan
+  ports:
+  - name: ping
+    port: 7800
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: infinispan
+  namespace: infinispan
+spec:
+  selector:
+    app: infinispan
+  ports:
+  - name: hotrod
+    port: 11222
+    targetPort: 11222
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: infinispan
+  namespace: infinispan
+spec:
+  serviceName: infinispan-headless
+  replicas: 3
+  selector:
+    matchLabels:
+      app: infinispan
+  template:
+    metadata:
+      labels:
+        app: infinispan
+    spec:
+      containers:
+      - name: infinispan
+        image: quay.io/infinispan/server:15.0
+        ports:
+        - containerPort: 11222
+          name: hotrod
+        - containerPort: 7800
+          name: ping
+        env:
+        - name: IDENTITIES_PATH
+          value: /etc/infinispan/identities.yaml
+        volumeMounts:
+        - name: credentials
+          mountPath: /etc/infinispan
+      volumes:
+      - name: credentials
+        secret:
+          secretName: infinispan-credentials
