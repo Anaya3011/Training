@@ -10,12 +10,15 @@ const PASSWORD = process.env.INFINISPAN_PASS || 'changeme';
 const auth = new DigestAuth(USERNAME, PASSWORD);
 
 async function ensureCache() {
+  const exists = await auth.fetch(`${INFINISPAN_URL}/rest/v2/caches/${CACHE_NAME}`, { method: 'HEAD' });
+  if (exists.ok) return;
+
   const res = await auth.fetch(`${INFINISPAN_URL}/rest/v2/caches/${CACHE_NAME}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ 'distributed-cache': { mode: 'SYNC' } }),
   });
-  if (!res.ok && res.status !== 409) {
+  if (!res.ok) {
     throw new Error(`failed to create cache: ${res.status} ${await res.text()}`);
   }
 }
