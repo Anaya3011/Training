@@ -15,6 +15,9 @@ server = "http://${REGISTRY}"
   capabilities = ["pull", "resolve", "push"]
 EOF
 
+# containerd 2.x (Ubuntu 26.04 default) uses the io.containerd.cri.v1.images
+# plugin namespace; containerd 1.7.x uses io.containerd.grpc.v1.cri instead.
+sed -i "/\[plugins\.'io\.containerd\.cri\.v1\.images'\.registry\]/,/^\[/{s|config_path = .*|config_path = '/etc/containerd/certs.d'|}" /etc/containerd/config.toml
 sed -i '/\[plugins\."io\.containerd\.grpc\.v1\.cri"\.registry\]/,/^\[/{s|config_path = .*|config_path = "/etc/containerd/certs.d"|}' /etc/containerd/config.toml
 
 systemctl restart containerd

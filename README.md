@@ -28,6 +28,9 @@ Frontend-Applikation und GitHub Actions Runner.
   zeigt den Pod-Hostnamen, der geantwortet hat
 - `manifests/session-app.yml` - Deployment, NodePort-Service (30080) und
   HorizontalPodAutoscaler (CPU-basiert, 1-6 Replicas) fuer die Session-App
+- `manifests/kaniko-build.yml` - ConfigMap mit dem App-Quellcode + Kaniko-Job,
+  baut das Image in-cluster und pusht es in die lokale Registry (kein
+  Docker/Podman auf Node oder Mac noetig)
 - `scripts/loadtest.js` - erzeugt Last gegen die Session-App (lokal am Mac
   ausfuehren), damit man Scale-up/Scale-down live beobachten kann
 
@@ -54,15 +57,28 @@ unten. Auf jeder Node einmalig:
 scripts/configure-insecure-registry.sh
 ```
 
-Dann Registry deployen, Image bauen und pushen (von einer Node mit Docker
-oder ueber `nerdctl`/`buildctl`, je nachdem was verfuegbar ist):
+Dann Registry deployen und Image per Kaniko in-cluster bauen/pushen (kein
+Docker/Podman noetig - der `app/`-Ordner selbst dient nur als Referenz/lokale
+Ansicht, der tatsaechliche Build-Kontext liegt als ConfigMap in
+`kaniko-build.yml`):
 
 ```bash
 kubectl apply -f manifests/registry.yml
-docker build -t 192.168.8.250:30500/session-app:1.0 app/
-docker push 192.168.8.250:30500/session-app:1.0
+kubectl apply -f manifests/kaniko-build.yml
+kubectl logs -n registry job/kaniko-session-app -f
+```
+
+Sobald der Job `Completed` ist, ist das Image in der Registry. Danach die
+Session-App deployen:
+
+```bash
 kubectl apply -f manifests/session-app.yml
 ```
+
+Hinweis: `app/Dockerfile`, `app/app.js`, `app/digest-auth.js` und die
+`Dockerfile`/`app.js`/`digest-auth.js`-Keys in der ConfigMap muessen bei
+Aenderungen am Code synchron gehalten werden - die ConfigMap ist der
+tatsaechliche Build-Input, `app/` ist die lesbare Kopie im Repo.
 
 Test manuell (Pod-Hostname in der Antwort beachten):
 
