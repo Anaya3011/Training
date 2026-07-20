@@ -13,13 +13,19 @@ async function ensureCache() {
   const exists = await auth.fetch(`${INFINISPAN_URL}/rest/v2/caches/${CACHE_NAME}`, { method: 'HEAD' });
   if (exists.ok) return;
 
+  // Multiple app pods can race here on scale-up: the HEAD check above isn't
+  // atomic with the create below, so a concurrent pod may have already
+  // created the cache by the time this POST lands. Treat "already exists" as
+  // success rather than a fatal error.
   const res = await auth.fetch(`${INFINISPAN_URL}/rest/v2/caches/${CACHE_NAME}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ 'distributed-cache': { mode: 'SYNC' } }),
   });
   if (!res.ok) {
-    throw new Error(`failed to create cache: ${res.status} ${await res.text()}`);
+    const body = await res.text();
+    if (res.status === 400 && body.includes('ISPN000507')) return;
+    throw new Error(`failed to create cache: ${res.status} ${body}`);
   }
 }
 
