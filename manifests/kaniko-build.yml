@@ -156,6 +156,18 @@ spec:
   template:
     spec:
       restartPolicy: Never
+      # ConfigMap volume entries are symlinks into a hidden ..data dir; Kaniko's
+      # snapshotter copies the broken symlink instead of the file it points to.
+      # Flatten to real files on a plain emptyDir before handing it to Kaniko.
+      initContainers:
+      - name: flatten-context
+        image: busybox:1.36
+        command: ["sh", "-c", "cp -rL /configmap/. /workspace/"]
+        volumeMounts:
+        - name: configmap-source
+          mountPath: /configmap
+        - name: build-context
+          mountPath: /workspace
       containers:
       - name: kaniko
         image: gcr.io/kaniko-project/executor:latest
@@ -168,6 +180,8 @@ spec:
         - name: build-context
           mountPath: /workspace
       volumes:
-      - name: build-context
+      - name: configmap-source
         configMap:
           name: session-app-source
+      - name: build-context
+        emptyDir: {}
