@@ -1,0 +1,72 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gha-runner-source
+  namespace: registry
+data:
+  Dockerfile: |
+    FROM ghcr.io/actions/actions-runner:latest
+    USER root
+    RUN curl -LO https://dl.k8s.io/release/v1.31.0/bin/linux/amd64/kubectl \
+        && install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl \
+        && rm kubectl
+    USER runner
+    COPY --chown=runner:docker entrypoint.sh /home/runner/entrypoint.sh
+    RUN chmod +x /home/runner/entrypoint.sh
+    ENTRYPOINT ["/home/runner/entrypoint.sh"]
+  entrypoint.sh: |
+    #!/bin/bash
+    set -e
+    cd /home/runner
+
+    ./config.sh --unattended \
+      --url "https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}" \
+      --token "${RUNNER_TOKEN}" \
+      --name "${RUNNER_NAME}" \
+      --work _work \
+      --replace \
+      --labels self-hosted,k8s-infinispan-lab
+
+    cleanup() {
+      ./config.sh remove --unattended --token "${RUNNER_TOKEN}" || true
+    }
+    trap cleanup EXIT
+
+    ./run.sh
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kaniko-gha-runner
+  namespace: registry
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      initContainers:
+      - name: flatten-context
+        image: busybox:1.36
+        command: ["sh", "-c", "cp -rL /configmap/. /workspace/"]
+        volumeMounts:
+        - name: configmap-source
+          mountPath: /configmap
+        - name: build-context
+          mountPath: /workspace
+      containers:
+      - name: kaniko
+        image: gcr.io/kaniko-project/executor:latest
+        args:
+        - --dockerfile=/workspace/Dockerfile
+        - --context=dir:///workspace/
+        - --destination=192.168.8.250:30500/gha-runner:1.0
+        - --insecure
+        volumeMounts:
+        - name: build-context
+          mountPath: /workspace
+      volumes:
+      - name: configmap-source
+        configMap:
+          name: gha-runner-source
+      - name: build-context
+        emptyDir: {}

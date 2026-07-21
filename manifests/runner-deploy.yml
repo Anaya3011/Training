@@ -1,0 +1,50 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: gha-runner-token
+  namespace: apps
+type: Opaque
+stringData:
+  # Registration tokens from POST /repos/{owner}/{repo}/actions/runners/registration-token
+  # expire after 1 hour - if the pod fails to register (e.g. token expired
+  # before the pod started), fetch a fresh one and update this Secret.
+  token: REPLACE_WITH_FRESH_TOKEN
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gha-runner
+  namespace: apps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gha-runner
+  template:
+    metadata:
+      labels:
+        app: gha-runner
+    spec:
+      serviceAccountName: gha-runner
+      containers:
+      - name: runner
+        image: 192.168.8.250:30500/gha-runner:1.0
+        env:
+        - name: GITHUB_OWNER
+          value: Anaya3011
+        - name: GITHUB_REPO
+          value: Training
+        - name: RUNNER_NAME
+          value: k8s-lab-runner
+        - name: RUNNER_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: gha-runner-token
+              key: token
+        resources:
+          requests:
+            cpu: 200m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
