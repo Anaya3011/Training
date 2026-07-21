@@ -45,10 +45,14 @@ Frontend-Applikation und GitHub Actions Runner.
   manuell anwenden: `kubectl apply -f bootstrap/runner-rbac.yml`
 - `manifests/runner-build.yml`, `manifests/runner-deploy.yml` - Kaniko-Build
   und Deployment fuer den Self-hosted Runner selbst (Image = offizielles
-  actions-runner-Image + kubectl)
-- `.github/workflows/deploy.yml` - laeuft bei Push auf `main` mit
-  Aenderungen unter `manifests/**`, fuehrt `kubectl apply -f manifests/`
-  auf dem Self-hosted Runner aus
+  actions-runner-Image + kubectl). Der Runner deployt nicht mehr selbst
+  (siehe Argo CD unten) - bleibt im Cluster fuer spaetere CI-Zwecke
+  (z. B. automatisierte Kaniko-Builds bei Push)
+- `bootstrap/argocd-repo-secret.yml`, `bootstrap/argocd-application.yml` -
+  Argo CD Repository-Credential (PAT-basiert) und Application-Definition,
+  die `manifests/` auf `main` beobachtet und automatisch synced
+  (GitOps-Pull-Modell, ersetzt den fruehreren `kubectl apply`-Schritt im
+  GitHub-Actions-Workflow)
 
 ## Deploy Infinispan
 
@@ -128,4 +132,39 @@ Parallel dazu beobachten:
 ```bash
 kubectl get hpa -n apps -w
 kubectl get pods -n apps -l app=session-app -o wide -w
+```
+
+## Argo CD installieren (GitOps: Cluster synced sich selbst mit dem Repo)
+
+```bash
+kubectl create namespace argocd
+kubectl apply -n argocd --server-side --force-conflicts \
+  -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "NodePort"}}'
+kubectl -n argocd get svc argocd-server -o jsonpath='{.spec.ports[?(@.name=="https")].nodePort}'
+```
+
+Initiales Admin-Passwort:
+
+```bash
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d
+```
+
+UI erreichbar via SSH-Tunnel (gleiches Prinzip wie beim K8s-Dashboard, siehe
+oben) auf `https://localhost:<nodePort>` (Login `admin` + obiges Passwort).
+
+Repo-Credential (PAT) und Application anwenden - `bootstrap/argocd-repo-secret.yml`
+enthaelt einen Platzhalter statt eines echten Tokens, vor dem Apply ersetzen:
+
+```bash
+kubectl apply -f bootstrap/argocd-repo-secret.yml
+kubectl apply -f bootstrap/argocd-application.yml
+```
+
+Danach synced Argo CD `manifests/` automatisch bei jeder Aenderung auf `main`
+(`selfHeal: true` stellt zusaetzlich manuelle `kubectl`-Aenderungen im
+Cluster automatisch wieder auf den Git-Zustand zurueck). Status pruefen:
+
+```bash
+kubectl get application k8s-infinispan-lab -n argocd
 ```

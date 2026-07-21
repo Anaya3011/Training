@@ -1,0 +1,26 @@
+# Bootstrap-only, applied manually once - see README. Not managed via the
+# manifests/ GitOps path itself (Argo CD can't reliably manage the Application
+# object that defines its own sync target).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: k8s-infinispan-lab
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Anaya3011/Training
+    targetRevision: main
+    path: manifests
+  # destination.namespace only applies to objects that omit their own
+  # metadata.namespace - every object under manifests/ sets its own, so this
+  # is just a required-but-unused fallback.
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: apps
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
