@@ -36,6 +36,19 @@ Frontend-Applikation und GitHub Actions Runner.
   Docker/Podman auf Node oder Mac noetig)
 - `scripts/loadtest.js` - erzeugt Last gegen die Session-App (lokal am Mac
   ausfuehren), damit man Scale-up/Scale-down live beobachten kann
+- `bootstrap/runner-rbac.yml` - ServiceAccount + Role/RoleBinding/ClusterRole
+  fuer den GitHub Actions Self-hosted Runner. Bewusst NICHT in `manifests/`,
+  da der CI-Workflow `kubectl apply -f manifests/` mit genau dieser
+  ServiceAccount ausfuehrt - ein Account kann sich per RBAC nicht selbst
+  mehr Rechte geben (Privilege-Escalation-Schutz), `kubectl apply` wuerde
+  also mit "forbidden" auf die eigenen RBAC-Objekte fehlschlagen. Einmalig
+  manuell anwenden: `kubectl apply -f bootstrap/runner-rbac.yml`
+- `manifests/runner-build.yml`, `manifests/runner-deploy.yml` - Kaniko-Build
+  und Deployment fuer den Self-hosted Runner selbst (Image = offizielles
+  actions-runner-Image + kubectl)
+- `.github/workflows/deploy.yml` - laeuft bei Push auf `main` mit
+  Aenderungen unter `manifests/**`, fuehrt `kubectl apply -f manifests/`
+  auf dem Self-hosted Runner aus
 
 ## Deploy Infinispan
 
