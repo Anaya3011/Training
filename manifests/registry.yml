@@ -1,3 +1,4 @@
+# CI test trigger: verifying the self-hosted runner picks up manifest changes.
 apiVersion: v1
 kind: Namespace
 metadata:
