@@ -70,7 +70,7 @@ spec:
     kind: Deployment
     name: session-app
   minReplicas: 1
-  maxReplicas: 6
+  maxReplicas: 8
   metrics:
   - type: Resource
     resource:
