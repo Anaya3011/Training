@@ -34,6 +34,11 @@ metadata:
 spec:
   selector:
     app: infinispan
+  # Digest-auth nonce state lives only in-memory on whichever Infinispan pod
+  # issued it (no shared/clustered nonce store) - without this, kube-proxy's
+  # per-request round robin can send a reused nonce to a pod that never
+  # issued it, causing intermittent 401s under concurrent load.
+  sessionAffinity: ClientIP
   ports:
   - name: hotrod
     port: 11222
