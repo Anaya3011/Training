@@ -1,3 +1,7 @@
+# Registration tokens expire after 1 hour - if the pod fails to register
+# or is restarted after the token expired, fetch a fresh one from
+# POST /repos/{owner}/{repo}/actions/runners/registration-token and
+# replace RUNNER_TOKEN's value below.
 apiVersion: v1
 kind: Secret
 metadata:
@@ -5,10 +9,7 @@ metadata:
   namespace: apps
 type: Opaque
 stringData:
-  # Registration tokens from POST /repos/{owner}/{repo}/actions/runners/registration-token
-  # expire after 1 hour - if the pod fails to register (e.g. token expired
-  # before the pod started), fetch a fresh one and update this Secret.
-  token: REPLACE_WITH_FRESH_TOKEN
+  token: AXZEJM7WF2ZHNZCESQCJBU3KL5EOY
 ---
 apiVersion: apps/v1
 kind: Deployment
