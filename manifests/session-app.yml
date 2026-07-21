@@ -69,7 +69,7 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: session-app
-  minReplicas: 2
+  minReplicas: 1
   maxReplicas: 9
   metrics:
   - type: Resource
